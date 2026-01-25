@@ -179,10 +179,18 @@ void VideoPlayer::framePlayerTask()
       #else
       mJpeg.setPixelType(RGB565_BIG_ENDIAN);
       #endif
-      mJpeg.decode(0, 0, 0);
+      // center the image on the display
+      int iXOff, iYOff;
+      iXOff = (mDisplay.width() - mJpeg.getWidth()) / 2;
+      if (iXOff < 0)
+        iXOff = 0;
+      iYOff = (mDisplay.height() - mJpeg.getHeight()) / 2;
+      if (iYOff < 0)
+        iYOff = 0;
+      mJpeg.decode(iXOff, iYOff, 0);
       mJpeg.close();
     }
-    // show channel indicator 
+    // show channel indicator
     if (millis() - mChannelVisible < 2000) {
       mDisplay.drawChannel(mChannelData->getChannelNumber());
     }
