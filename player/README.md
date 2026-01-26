@@ -1,3 +1,22 @@
+# CYD
+
+Encode `input.mp4` to `output.avi` then copy `output.avi` to root of SD card:
+
+```sh-session
+ffmpeg -i input.mp4 -vf "framerate=15,scale=320:240:force_original_aspect_ratio=decrease" -c:v mjpeg -q:v 10 -acodec pcm_u8 -af "loudnorm" -ar 16000 -ac 1 output.avi
+```
+
+Clone this repository, setup PlatformIO, connect CYD to USB and upload application:
+
+```sh-session
+git clone https://github.com/rectalogic/esp32-tv.git
+cd esp32-tv/player
+uv venv --seed
+uv pip install platformio intelhex
+.venv/bin/pio run -e cheap-yellow-display -t upload -t monitor
+```
+
+
 # ESP32 Movie Streaming Firmware
 
 Almost all the configuration is done in the `platformio.ini` file. You can use the existing settings as the basis for new boards.
@@ -47,4 +66,3 @@ If you want to get fancy you can use the loudnorm filter to normalize the audio 
 ```
 ./tools/convert_movie_with_normalisation.sh input.mp4 output.avi
 ```
-
