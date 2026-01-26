@@ -58,6 +58,7 @@ void VideoPlayer::play()
   {
     return;
   }
+  mDisplay.fillScreen(DisplayColors::BLACK);
   mState = VideoPlayerState::PLAYING;
   mVideoSource->setState(VideoPlayerState::PLAYING);
   mCurrentAudioSample = 0;
