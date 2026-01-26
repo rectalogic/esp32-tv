@@ -69,13 +69,13 @@ void TFT::fillScreen(uint16_t color) {
 }
 
 void TFT::drawChannel(int channelIndex) {
-  tft->setCursor(20, 20);
+  tft->setCursor(20, 30);
   tft->setTextColor(TFT_GREEN, TFT_BLACK);
   tft->printf("%d", channelIndex);
 }
 
 void TFT::drawTuningText() {
-  tft->setCursor(20, 20);
+  tft->setCursor(20, 30);
   tft->setTextColor(TFT_GREEN, TFT_BLACK);
   tft->println("TUNING...");
 }
