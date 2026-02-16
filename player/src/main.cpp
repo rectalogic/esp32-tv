@@ -222,6 +222,7 @@ void loop()
   RemoteCommands command = remoteInput->getLatestCommand();
   if (command != RemoteCommands::UNKNOWN)
   {
+    Serial.printf("RemoteCommand 0x%x\n", command);
     switch (command)
     {
     case RemoteCommands::POWER:
