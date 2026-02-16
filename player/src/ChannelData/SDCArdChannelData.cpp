@@ -6,7 +6,26 @@
 #include "../AVIParser/AVIParser.h"
 
 SDCardChannelData::SDCardChannelData(SDCard *sdCard, const char *aviPath): mSDCard(sdCard), mAviPath(aviPath) {
+  mParserMutex = xSemaphoreCreateMutex();
+}
 
+SDCardChannelData::~SDCardChannelData() {
+  if (mParserMutex != NULL) {
+    xSemaphoreTake(mParserMutex, portMAX_DELAY);
+  }
+  if (mCurrentChannelAudioParser) {
+    delete mCurrentChannelAudioParser;
+    mCurrentChannelAudioParser = NULL;
+  }
+  if (mCurrentChannelVideoParser) {
+    delete mCurrentChannelVideoParser;
+    mCurrentChannelVideoParser = NULL;
+  }
+  if (mParserMutex != NULL) {
+    xSemaphoreGive(mParserMutex);
+    vSemaphoreDelete(mParserMutex);
+    mParserMutex = NULL;
+  }
 }
 
 bool SDCardChannelData::fetchChannelData() {
@@ -35,31 +54,67 @@ void SDCardChannelData::setChannel(int channel) {
     Serial.printf("Invalid channel %d\n", channel);
     return;
   }
-  // close any open AVI files
-  if (mCurrentChannelAudioParser) {
-    delete mCurrentChannelAudioParser;
-    mCurrentChannelAudioParser = NULL;
-  }
-  if (mCurrentChannelVideoParser) {
-    delete mCurrentChannelVideoParser;
-    mCurrentChannelVideoParser = NULL;
-  }
   // open the AVI file
   std::string aviFilename = mAviFiles[channel];
   Serial.printf("Opening AVI file %s\n", aviFilename.c_str());
-  mCurrentChannelAudioParser = new AVIParser(aviFilename, AVIChunkType::AUDIO);
-  if (!mCurrentChannelAudioParser->open()) {
+  AVIParser *nextAudioParser = new AVIParser(aviFilename, AVIChunkType::AUDIO);
+  if (!nextAudioParser->open()) {
     Serial.printf("Failed to open AVI file %s\n", aviFilename.c_str());
-    delete mCurrentChannelAudioParser;
-    mCurrentChannelAudioParser = NULL;
+    delete nextAudioParser;
+    nextAudioParser = NULL;
+    return;
   }
-  mCurrentChannelVideoParser = new AVIParser(aviFilename, AVIChunkType::VIDEO);
-  if (!mCurrentChannelVideoParser->open()) {
+  AVIParser *nextVideoParser = new AVIParser(aviFilename, AVIChunkType::VIDEO);
+  if (!nextVideoParser->open()) {
     Serial.printf("Failed to open AVI file %s\n", aviFilename.c_str());
-    delete mCurrentChannelVideoParser;
-    mCurrentChannelVideoParser = NULL;
-    delete mCurrentChannelAudioParser;
-    mCurrentChannelAudioParser = NULL;
+    delete nextVideoParser;
+    nextVideoParser = NULL;
+    delete nextAudioParser;
+    nextAudioParser = NULL;
+    return;
   }
+
+  if (mParserMutex == NULL || xSemaphoreTake(mParserMutex, portMAX_DELAY) != pdTRUE) {
+    delete nextVideoParser;
+    delete nextAudioParser;
+    return;
+  }
+
+  AVIParser *oldAudioParser = mCurrentChannelAudioParser;
+  AVIParser *oldVideoParser = mCurrentChannelVideoParser;
+  mCurrentChannelAudioParser = nextAudioParser;
+  mCurrentChannelVideoParser = nextVideoParser;
   mChannelNumber = channel;
+  xSemaphoreGive(mParserMutex);
+
+  if (oldAudioParser) {
+    delete oldAudioParser;
+  }
+  if (oldVideoParser) {
+    delete oldVideoParser;
+  }
+}
+
+size_t SDCardChannelData::getNextAudioChunk(uint8_t **buffer, size_t &bufferLength) {
+  if (mParserMutex == NULL || xSemaphoreTake(mParserMutex, portMAX_DELAY) != pdTRUE) {
+    return 0;
+  }
+  size_t chunkLength = 0;
+  if (mCurrentChannelAudioParser != NULL) {
+    chunkLength = mCurrentChannelAudioParser->getNextChunk((uint8_t **) buffer, bufferLength);
+  }
+  xSemaphoreGive(mParserMutex);
+  return chunkLength;
+}
+
+size_t SDCardChannelData::getNextVideoChunk(uint8_t **buffer, size_t &bufferLength) {
+  if (mParserMutex == NULL || xSemaphoreTake(mParserMutex, portMAX_DELAY) != pdTRUE) {
+    return 0;
+  }
+  size_t chunkLength = 0;
+  if (mCurrentChannelVideoParser != NULL) {
+    chunkLength = mCurrentChannelVideoParser->getNextChunk((uint8_t **) buffer, bufferLength);
+  }
+  xSemaphoreGive(mParserMutex);
+  return chunkLength;
 }

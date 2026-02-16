@@ -30,12 +30,17 @@ TFT::TFT(): tft(new TFT_eSPI()) {
 }
 
 void TFT::drawPixels(int x, int y, int width, int height, uint16_t *pixels) {
-  int numPixels = width * height;
-  if (dmaBuffer[dmaBufferIndex] == NULL)
-  {
-    dmaBuffer[dmaBufferIndex] = (uint16_t *)malloc(numPixels * 2);
+  size_t numPixels = size_t(width) * size_t(height);
+  if (numPixels > dmaBufferCapacityPixels[dmaBufferIndex]) {
+    uint16_t *resizedBuffer = (uint16_t *)realloc(dmaBuffer[dmaBufferIndex], numPixels * sizeof(uint16_t));
+    if (resizedBuffer == NULL) {
+      Serial.println("Failed to allocate TFT DMA buffer");
+      return;
+    }
+    dmaBuffer[dmaBufferIndex] = resizedBuffer;
+    dmaBufferCapacityPixels[dmaBufferIndex] = numPixels;
   }
-  memcpy(dmaBuffer[dmaBufferIndex], pixels, numPixels * 2);
+  memcpy(dmaBuffer[dmaBufferIndex], pixels, numPixels * sizeof(uint16_t));
   #ifdef USE_DMA
   tft->dmaWait();
   #endif

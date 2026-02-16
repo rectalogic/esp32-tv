@@ -11,11 +11,6 @@ SDCardAudioSource::SDCardAudioSource(SDCardChannelData *channelData): mChannelDa
 
 int SDCardAudioSource::getAudioSamples(uint8_t **buffer, size_t &bufferSize, int currentAudioSample)
 {
-  // read the audio data into the buffer
-  AVIParser *parser = mChannelData->getAudioParser();
-  if (parser) {
-    int audioLength = parser->getNextChunk((uint8_t **) buffer, bufferSize);
-    return audioLength;
-  }
-  return 0;
+  (void) currentAudioSample;
+  return (int) mChannelData->getNextAudioChunk((uint8_t **) buffer, bufferSize);
 }

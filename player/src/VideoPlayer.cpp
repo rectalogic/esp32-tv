@@ -24,6 +24,7 @@ void VideoPlayer::_audioPlayerTask(void *param)
 VideoPlayer::VideoPlayer(ChannelData *channelData, VideoSource *videoSource, AudioSource *audioSource, Display &display, AudioOutput *audioOutput)
 : mChannelData(channelData), mVideoSource(videoSource), mAudioSource(audioSource), mDisplay(display), mState(VideoPlayerState::STOPPED), mAudioOutput(audioOutput)
 {
+  mDisplayMutex = xSemaphoreCreateMutex();
 }
 
 void VideoPlayer::start()
@@ -58,10 +59,13 @@ void VideoPlayer::play()
   {
     return;
   }
-  mDisplay.fillScreen(DisplayColors::BLACK);
   mState = VideoPlayerState::PLAYING;
   mVideoSource->setState(VideoPlayerState::PLAYING);
   mCurrentAudioSample = 0;
+  if (mDisplayMutex != NULL && xSemaphoreTake(mDisplayMutex, portMAX_DELAY) == pdTRUE) {
+    mDisplay.fillScreen(DisplayColors::BLACK);
+    xSemaphoreGive(mDisplayMutex);
+  }
 }
 
 void VideoPlayer::stop()
@@ -73,7 +77,10 @@ void VideoPlayer::stop()
   mState = VideoPlayerState::STOPPED;
   mVideoSource->setState(VideoPlayerState::STOPPED);
   mCurrentAudioSample = 0;
-  mDisplay.fillScreen(DisplayColors::BLACK);
+  if (mDisplayMutex != NULL && xSemaphoreTake(mDisplayMutex, portMAX_DELAY) == pdTRUE) {
+    mDisplay.fillScreen(DisplayColors::BLACK);
+    xSemaphoreGive(mDisplayMutex);
+  }
 }
 
 void VideoPlayer::pause()
@@ -140,22 +147,33 @@ void VideoPlayer::framePlayerTask()
       // draw random pixels to the screen to simulate static
       // we'll do this 8 rows of pixels at a time to save RAM
       int width = mDisplay.width();
-      int height = 8;
+      int stripeHeight = 8;
+      int displayHeight = mDisplay.height();
       if (staticBuffer == NULL)
       {
-        staticBuffer = (uint16_t *)malloc(width * height * 2);
+        staticBuffer = (uint16_t *)malloc(width * stripeHeight * sizeof(uint16_t));
+      }
+      if (staticBuffer == NULL) {
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        continue;
+      }
+      if (mDisplayMutex == NULL || xSemaphoreTake(mDisplayMutex, portMAX_DELAY) != pdTRUE) {
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        continue;
       }
       mDisplay.startWrite();
-      for (int i = 0; i < mDisplay.height(); i++)
+      for (int y = 0; y < displayHeight; y += stripeHeight)
       {
-        for (int p = 0; p < width * height; p++)
+        int currentStripeHeight = min(stripeHeight, displayHeight - y);
+        for (int p = 0; p < width * currentStripeHeight; p++)
         {
           int grey = xorshift16() >> 8;
           staticBuffer[p] = mDisplay.color565(grey, grey, grey);
         }
-        mDisplay.drawPixels(0, i * height, width, height, staticBuffer);
+        mDisplay.drawPixels(0, y, width, currentStripeHeight, staticBuffer);
       }
       mDisplay.endWrite();
+      xSemaphoreGive(mDisplayMutex);
       vTaskDelay(50 / portTICK_PERIOD_MS);
       continue;
     }
@@ -170,6 +188,10 @@ void VideoPlayer::framePlayerTask()
     // keep the frame rate elapsed time to 5 seconds
     while(frameTimes.size() > 0 && frameTimes.back() - frameTimes.front() > 5000) {
       frameTimes.pop_front();
+    }
+    if (mDisplayMutex == NULL || xSemaphoreTake(mDisplayMutex, portMAX_DELAY) != pdTRUE) {
+      vTaskDelay(10 / portTICK_PERIOD_MS);
+      continue;
     }
     mDisplay.startWrite();
     if (mJpeg.openRAM(jpegBuffer, jpegLength, _doDraw))
@@ -199,6 +221,7 @@ void VideoPlayer::framePlayerTask()
     mDisplay.drawFPS(frameTimes.size() / 5);
     #endif
     mDisplay.endWrite();
+    xSemaphoreGive(mDisplayMutex);
   }
 }
 

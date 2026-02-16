@@ -8,6 +8,7 @@ class TFT: public Display {
 private:
   TFT_eSPI *tft;
   uint16_t *dmaBuffer[2] = {NULL, NULL};
+  size_t dmaBufferCapacityPixels[2] = {0, 0};
   int dmaBufferIndex = 0;
 public:
   TFT();

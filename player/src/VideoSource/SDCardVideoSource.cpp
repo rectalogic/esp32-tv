@@ -17,10 +17,6 @@ void SDCardVideoSource::start()
 
 bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, size_t &frameLength)
 {
-  AVIParser *parser = mChannelData->getVideoParser();
-  if (!parser) {
-    return false;
-  }
   if (mState == VideoPlayerState::STOPPED || mState == VideoPlayerState::STATIC)
   {
     vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -46,7 +42,10 @@ bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, si
   while (videoTime > 1000 * mFrameCount / DEFAULT_FPS)
   {
     mFrameCount++;
-    frameLength = parser->getNextChunk((uint8_t **)buffer, bufferLength);
+    frameLength = mChannelData->getNextVideoChunk((uint8_t **)buffer, bufferLength);
+    if (frameLength == 0) {
+      return false;
+    }
   }
   return true;
 }

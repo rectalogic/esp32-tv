@@ -3,6 +3,8 @@
 #include "ChannelData.h"
 #include <vector>
 #include <string>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 class SDCard;
 class AVIParser;
@@ -14,10 +16,12 @@ private:
   std::vector<std::string> mAviFiles;
   AVIParser *mCurrentChannelAudioParser = NULL;
   AVIParser *mCurrentChannelVideoParser = NULL;
+  SemaphoreHandle_t mParserMutex = NULL;
   SDCard *mSDCard;
   const char *mAviPath;
 public:
   SDCardChannelData(SDCard *sdCard, const char *aviPath);
+  ~SDCardChannelData();
   bool fetchChannelData();
   int getChannelCount() {
     return mAviFiles.size();
@@ -32,5 +36,7 @@ public:
   AVIParser *getVideoParser() {
     return mCurrentChannelVideoParser;
   };
+  size_t getNextAudioChunk(uint8_t **buffer, size_t &bufferLength);
+  size_t getNextVideoChunk(uint8_t **buffer, size_t &bufferLength);
   void setChannel(int channel);
 };

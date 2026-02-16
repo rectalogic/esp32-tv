@@ -1,5 +1,7 @@
 #pragma once
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 // #ifdef LED_MATRIX
 // struct File; // fixes weird compilation error
 // #endif
@@ -21,6 +23,7 @@ class VideoPlayer {
 
     // video playing
     Display &mDisplay;
+    SemaphoreHandle_t mDisplayMutex = NULL;
     JPEGDEC mJpeg;
 
     // video source
