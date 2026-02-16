@@ -16,6 +16,10 @@ uv pip install platformio intelhex
 .venv/bin/pio run -e cheap-yellow-display -t upload -t monitor
 ```
 
+CYD with IR receiver and speaker connected:
+
+![CYD](https://github.com/user-attachments/assets/48ec7f10-ae30-49ae-9380-4a88e0fa353b)
+
 
 # ESP32 Movie Streaming Firmware
 
