@@ -164,7 +164,7 @@ void setup()
     audioOutput
   );
   videoPlayer->start();
-#ifndef HAS_IR_REMOTE
+
   display.drawTuningText();
   // get the channel info
   while(!channelData->fetchChannelData()) {
@@ -175,7 +175,7 @@ void setup()
   videoPlayer->setChannel(0);
   delay(500);
   videoPlayer->play();
-#endif
+
   #ifdef M5CORE2
   audioOutput->setVolume(4);
   #endif
