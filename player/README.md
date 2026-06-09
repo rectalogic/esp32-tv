@@ -14,7 +14,11 @@ cd esp32-tv/player
 uv venv --seed
 uv pip install platformio intelhex
 uv run pio run -e cyd-sd-ir -t upload -t monitor
+  OR
+uv run pio run -e cyd-embed -t upload -t monitor
 ```
+
+When building cyd-embed, you must have a file `src/video.avi` which will be embedded in the flash memory. It should be less than 2,793,996 bytes
 
 CYD with IR receiver and speaker connected:
 
