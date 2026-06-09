@@ -11,11 +11,15 @@
 #include "AudioOutput/PDMOutput.h"
 #include "ChannelData/NetworkChannelData.h"
 #include "ChannelData/SDCardChannelData.h"
+#include "ChannelData/EmbeddedChannelData.h"
 #include "AudioSource/NetworkAudioSource.h"
 #include "VideoSource/NetworkVideoSource.h"
 #include "AudioSource/SDCardAudioSource.h"
 #include "VideoSource/SDCardVideoSource.h"
+#include "AudioSource/EmbeddedAudioSource.h"
+#include "VideoSource/EmbeddedVideoSource.h"
 #include "AVIParser/AVIParser.h"
+#include "EmbeddedVideo.h"
 #include "SDCard.h"
 #include "PowerUtils.h"
 #include "Button.h"
@@ -76,7 +80,12 @@ void setup()
   //     vTaskDelay(100);
   //   }
   // }, "touch", 4096, NULL, 1, NULL);
-  #ifdef USE_SDCARD
+  #ifdef USE_EMBED
+  Serial.println("Using embedded video");
+  channelData = new EmbeddedChannelData(EMBEDDED_VIDEO_DATA, EMBEDDED_VIDEO_LENGTH, EMBEDDED_VIDEO_NAME);
+  audioSource = new EmbeddedAudioSource((EmbeddedChannelData *) channelData);
+  videoSource = new EmbeddedVideoSource((EmbeddedChannelData *) channelData);
+  #elif defined(USE_SDCARD)
   Serial.println("Using SD Card");
   // power on the SD card
   #ifdef SD_CARD_PWR

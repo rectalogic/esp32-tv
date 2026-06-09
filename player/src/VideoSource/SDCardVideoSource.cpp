@@ -4,8 +4,6 @@
 #include "../AVIParser/AVIParser.h"
 #include "../ChannelData/SDCardChannelData.h"
 
-#define DEFAULT_FPS 15
-
 SDCardVideoSource::SDCardVideoSource(SDCardChannelData *mChannelData) : mChannelData(mChannelData)
 {
 }
@@ -34,12 +32,19 @@ bool SDCardVideoSource::getVideoFrame(uint8_t **buffer, size_t &bufferLength, si
   // work out the video time from a combination of the currentAudioSample and the elapsed time
   int elapsedTime = millis() - mLastAudioTimeUpdateMs;
   int videoTime = mAudioTimeMs + elapsedTime;
-  int frameTime = 1000 * mFrameCount / DEFAULT_FPS;
+  unsigned int frameDurationMs = mChannelData->getFrameDurationMs();
+  if (frameDurationMs == 0)
+  {
+    Serial.println("SDCardVideoSource::getVideoFrame: AVI frame duration is not available");
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    return false;
+  }
+  int frameTime = mFrameCount * frameDurationMs;
   if (videoTime <= frameTime)
   {
     return false;
   }
-  while (videoTime > 1000 * mFrameCount / DEFAULT_FPS)
+  while (videoTime > mFrameCount * frameDurationMs)
   {
     mFrameCount++;
     frameLength = mChannelData->getNextVideoChunk((uint8_t **)buffer, bufferLength);

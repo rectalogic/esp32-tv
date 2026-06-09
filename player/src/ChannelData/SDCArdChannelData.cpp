@@ -118,3 +118,15 @@ size_t SDCardChannelData::getNextVideoChunk(uint8_t **buffer, size_t &bufferLeng
   xSemaphoreGive(mParserMutex);
   return chunkLength;
 }
+
+unsigned int SDCardChannelData::getFrameDurationMs() {
+  if (mParserMutex == NULL || xSemaphoreTake(mParserMutex, portMAX_DELAY) != pdTRUE) {
+    return 0;
+  }
+  unsigned int frameDurationMs = 0;
+  if (mCurrentChannelVideoParser != NULL) {
+    frameDurationMs = mCurrentChannelVideoParser->getFrameDurationMs();
+  }
+  xSemaphoreGive(mParserMutex);
+  return frameDurationMs;
+}

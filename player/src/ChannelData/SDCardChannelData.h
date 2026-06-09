@@ -38,5 +38,6 @@ public:
   };
   size_t getNextAudioChunk(uint8_t **buffer, size_t &bufferLength);
   size_t getNextVideoChunk(uint8_t **buffer, size_t &bufferLength);
+  unsigned int getFrameDurationMs();
   void setChannel(int channel);
 };
