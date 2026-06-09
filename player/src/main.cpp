@@ -1,4 +1,6 @@
 #include <Arduino.h>
+extern "C" void _cleanup_r(struct _reent *) {}
+extern "C" void _Unwind_SetEnableExceptionFdeSorting(unsigned char) {}
 #include <WiFi.h>
 #include "Displays/TFT.h"
 #include "Displays/Matrix.h"

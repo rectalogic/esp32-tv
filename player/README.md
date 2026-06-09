@@ -13,7 +13,7 @@ git clone https://github.com/rectalogic/esp32-tv.git
 cd esp32-tv/player
 uv venv --seed
 uv pip install platformio intelhex
-.venv/bin/pio run -e cyd-sd-ir -t upload -t monitor
+uv run pio run -e cyd-sd-ir -t upload -t monitor
 ```
 
 CYD with IR receiver and speaker connected:
