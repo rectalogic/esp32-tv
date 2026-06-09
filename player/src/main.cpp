@@ -101,7 +101,7 @@ void setup()
   channelData = new SDCardChannelData(card, "/");
   audioSource = new SDCardAudioSource((SDCardChannelData *) channelData);
   videoSource = new SDCardVideoSource((SDCardChannelData *) channelData);
-  #else
+  #elif defined(USE_WIFI)
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED)
   {
