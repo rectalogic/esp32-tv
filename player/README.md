@@ -18,7 +18,8 @@ uv run pio run -e cyd-sd-ir -t upload -t monitor
 uv run pio run -e cyd-embed -t upload -t monitor
 ```
 
-When building cyd-embed, you must have a file `src/video.avi` which will be embedded in the flash memory. It should be less than 2,793,996 bytes
+When building cyd-embed, you must have a file `src/video.avi` which will be embedded in the flash memory. It should be less than 2,793,996 bytes.
+If an SD card is installed, videos will be played from that. Otherwise the embedded video will play.
 
 CYD with IR receiver and speaker connected:
 

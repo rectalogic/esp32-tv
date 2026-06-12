@@ -119,12 +119,7 @@ void setup()
   //     vTaskDelay(100);
   //   }
   // }, "touch", 4096, NULL, 1, NULL);
-  #ifdef USE_EMBED
-  Serial.println("Using embedded video");
-  channelData = new EmbeddedChannelData(EMBEDDED_VIDEO_DATA, EMBEDDED_VIDEO_LENGTH, EMBEDDED_VIDEO_NAME);
-  audioSource = new EmbeddedAudioSource((EmbeddedChannelData *) channelData);
-  videoSource = new EmbeddedVideoSource((EmbeddedChannelData *) channelData);
-  #elif defined(USE_SDCARD)
+  #ifdef USE_SDCARD
   Serial.println("Using SD Card");
   // power on the SD card
   #ifdef SD_CARD_PWR
@@ -139,16 +134,24 @@ void setup()
   SDCard *card = new SDCard(SD_CARD_MISO, SD_CARD_MOSI, SD_CARD_CLK, SD_CARD_CS);
   #endif
   // check that the SD Card has mounted properly
-  if (!card->isMounted()) {
-    Serial.println("Failed to mount SD Card");
-    display.drawSDCardFailed();
-    while(true) {
-      delay(1000);
-    }
+  if (card->isMounted()) {
+      channelData = new SDCardChannelData(card, "/");
+      audioSource = new SDCardAudioSource((SDCardChannelData *) channelData);
+      videoSource = new SDCardVideoSource((SDCardChannelData *) channelData);
+  } else {
+      #ifdef USE_EMBED
+      Serial.println("Failed to mount SD Card, using embedded video");
+      channelData = new EmbeddedChannelData(EMBEDDED_VIDEO_DATA, EMBEDDED_VIDEO_LENGTH, EMBEDDED_VIDEO_NAME);
+      audioSource = new EmbeddedAudioSource((EmbeddedChannelData *) channelData);
+      videoSource = new EmbeddedVideoSource((EmbeddedChannelData *) channelData);
+      #elif
+      Serial.println("Failed to mount SD Card");
+      display.drawSDCardFailed();
+      while(true) {
+          delay(1000);
+      }
+      #endif
   }
-  channelData = new SDCardChannelData(card, "/");
-  audioSource = new SDCardAudioSource((SDCardChannelData *) channelData);
-  videoSource = new SDCardVideoSource((SDCardChannelData *) channelData);
   #elif defined(USE_WIFI)
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED)
