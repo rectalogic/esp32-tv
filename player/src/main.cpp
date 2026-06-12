@@ -144,7 +144,7 @@ void setup()
       channelData = new EmbeddedChannelData(EMBEDDED_VIDEO_DATA, EMBEDDED_VIDEO_LENGTH, EMBEDDED_VIDEO_NAME);
       audioSource = new EmbeddedAudioSource((EmbeddedChannelData *) channelData);
       videoSource = new EmbeddedVideoSource((EmbeddedChannelData *) channelData);
-      #elif
+      #else
       Serial.println("Failed to mount SD Card");
       display.drawSDCardFailed();
       while(true) {
