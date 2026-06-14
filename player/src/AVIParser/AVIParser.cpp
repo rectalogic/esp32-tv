@@ -2,7 +2,31 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fstream>
+#include <streambuf>
+#include <istream>
 #include "AVIParser.h"
+
+#ifdef USE_EMBED
+#include "video_avi.embed"
+
+class embedbuf : public std::streambuf {
+public:
+    embedbuf() {
+        char* p = reinterpret_cast<char*>(const_cast<unsigned char*>(video_avi));
+        setg(p, p, p + video_avi_len);
+    }
+};
+
+class embedstream : public std::istream {
+    embedbuf buf_;
+
+public:
+    embedstream()
+        : std::istream(&buf_)
+        , buf_()
+    {}
+};
+#endif
 
 typedef struct
 {
@@ -26,11 +50,8 @@ AVIParser::AVIParser(std::string fname, AVIChunkType requiredChunkType): mFileNa
 
 AVIParser::~AVIParser()
 {
-  if (mStream && mOwnsStream)
-  {
-    delete mStream;
-    mStream = nullptr;
-  }
+  delete mStream;
+  mStream = nullptr;
 }
 
 bool AVIParser::isMoviListChunk(unsigned int chunkSize)
@@ -60,15 +81,22 @@ bool AVIParser::isMoviListChunk(unsigned int chunkSize)
 
 bool AVIParser::open()
 {
-  auto *fileStream = new std::ifstream(mFileName, std::ios::binary);
-  if (!fileStream->is_open())
-  {
-    Serial.printf("Failed to open file.\n");
-    delete fileStream;
-    return false;
+  #ifdef USE_EMBED
+  if (mFileName.empty()) {
+    mStream = new embedstream();
   }
-  mStream = fileStream;
-  mOwnsStream = true;
+  #endif
+
+  if (!mStream) {
+    auto *fileStream = new std::ifstream(mFileName, std::ios::binary);
+    if (!fileStream->is_open())
+    {
+      Serial.printf("Failed to open file.\n");
+      delete fileStream;
+      return false;
+    }
+    mStream = fileStream;
+  }
 
   // check the file is valid
   ChunkHeader header;
@@ -79,7 +107,6 @@ bool AVIParser::open()
     Serial.println("Not a valid AVI file.");
     delete mStream;
     mStream = nullptr;
-    mOwnsStream = false;
     return false;
   }
   else
@@ -94,7 +121,6 @@ bool AVIParser::open()
     Serial.println("Not a valid AVI file.");
     delete mStream;
     mStream = nullptr;
-    mOwnsStream = false;
     return false;
   }
   else
@@ -130,7 +156,6 @@ bool AVIParser::open()
     Serial.printf("Failed to find the movi list.\n");
     delete mStream;
     mStream = nullptr;
-    mOwnsStream = false;
     return false;
   }
   // keep the file open for reading the frames
