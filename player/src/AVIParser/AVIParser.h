@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <istream>
 
 enum class AVIChunkType
 {
@@ -12,7 +13,8 @@ class AVIParser
 private:
   std::string mFileName;
   AVIChunkType mRequiredChunkType;
-  FILE *mFile = NULL;
+  std::istream *mStream = nullptr;
+  bool mOwnsStream = false;
   long mMoviListPosition = 0;
   long mMoviListLength;
 

@@ -1,7 +1,7 @@
 #include <Arduino.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fstream>
 #include "AVIParser.h"
 
 typedef struct
@@ -10,10 +10,10 @@ typedef struct
   unsigned int chunkSize;
 } ChunkHeader;
 
-void readChunk(FILE *file, ChunkHeader *header)
+void readChunk(std::istream &stream, ChunkHeader *header)
 {
-  fread(&header->chunkId, 4, 1, file);
-  fread(&header->chunkSize, 4, 1, file);
+  stream.read(header->chunkId, 4);
+  stream.read(reinterpret_cast<char *>(&header->chunkSize), 4);
   // Serial.printf("ChunkId %c%c%c%c, size %u\n",
   //        header->chunkId[0], header->chunkId[1],
   //        header->chunkId[2], header->chunkId[3],
@@ -26,16 +26,17 @@ AVIParser::AVIParser(std::string fname, AVIChunkType requiredChunkType): mFileNa
 
 AVIParser::~AVIParser()
 {
-  if (mFile)
+  if (mStream && mOwnsStream)
   {
-    fclose(mFile);
+    delete mStream;
+    mStream = nullptr;
   }
 }
 
 bool AVIParser::isMoviListChunk(unsigned int chunkSize)
 {
   char listType[4];
-  fread(&listType, 4, 1, mFile);
+  mStream->read(listType, 4);
   chunkSize -= 4;
   Serial.printf("LIST type %c%c%c%c\n",
                 listType[0], listType[1],
@@ -45,35 +46,40 @@ bool AVIParser::isMoviListChunk(unsigned int chunkSize)
   {
     Serial.printf("Found movi list.\n");
     Serial.printf("List Chunk Length: %d\n", chunkSize);
-    mMoviListPosition = ftell(mFile);
+    mMoviListPosition = mStream->tellg();
     mMoviListLength = chunkSize;
     return true;
   }
   else
   {
     // skip the rest of the bytes
-    fseek(mFile, chunkSize, SEEK_CUR);
+    mStream->seekg(chunkSize, std::ios::cur);
   }
   return false;
 }
 
 bool AVIParser::open()
 {
-  mFile = fopen(mFileName.c_str(), "rb");
-  if (!mFile)
+  auto *fileStream = new std::ifstream(mFileName, std::ios::binary);
+  if (!fileStream->is_open())
   {
     Serial.printf("Failed to open file.\n");
+    delete fileStream;
     return false;
   }
+  mStream = fileStream;
+  mOwnsStream = true;
+
   // check the file is valid
   ChunkHeader header;
   // Read RIFF header
-  readChunk(mFile, &header);
+  readChunk(*mStream, &header);
   if (strncmp(header.chunkId, "RIFF", 4) != 0)
   {
     Serial.println("Not a valid AVI file.");
-    fclose(mFile);
-    mFile = NULL;
+    delete mStream;
+    mStream = nullptr;
+    mOwnsStream = false;
     return false;
   }
   else
@@ -82,12 +88,13 @@ bool AVIParser::open()
   }
   // next four bytes are the RIFF type which should be 'AVI '
   char riffType[4];
-  fread(&riffType, 4, 1, mFile);
+  mStream->read(riffType, 4);
   if (strncmp(riffType, "AVI ", 4) != 0)
   {
     Serial.println("Not a valid AVI file.");
-    fclose(mFile);
-    mFile = NULL;
+    delete mStream;
+    mStream = nullptr;
+    mOwnsStream = false;
     return false;
   }
   else
@@ -96,10 +103,10 @@ bool AVIParser::open()
   }
 
   // now read each chunk and find the movi list
-  while (!feof(mFile) && !ferror(mFile))
+  while (mStream->good())
   {
-    readChunk(mFile, &header);
-    if (feof(mFile) || ferror(mFile))
+    readChunk(*mStream, &header);
+    if (mStream->eof() || mStream->fail())
     {
       break;
     }
@@ -114,15 +121,16 @@ bool AVIParser::open()
     else
     {
       // skip the chunk data bytes
-      fseek(mFile, header.chunkSize, SEEK_CUR);
+      mStream->seekg(header.chunkSize, std::ios::cur);
     }
   }
   // did we find the list?
   if (mMoviListPosition == 0)
   {
     Serial.printf("Failed to find the movi list.\n");
-    fclose(mFile);
-    mFile = NULL;
+    delete mStream;
+    mStream = nullptr;
+    mOwnsStream = false;
     return false;
   }
   // keep the file open for reading the frames
@@ -131,8 +139,8 @@ bool AVIParser::open()
 
 size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
 {
-  // check if the file is open
-  if (!mFile)
+  // check if the stream is open
+  if (!mStream)
   {
     Serial.println("No file open.");
     return 0;
@@ -146,7 +154,7 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
   ChunkHeader header;
   while (mMoviListLength > 0)
   {
-    readChunk(mFile, &header);
+    readChunk(*mStream, &header);
     mMoviListLength -= 8;
     bool isVideoChunk = strncmp(header.chunkId, "00dc", 4) == 0;
     bool isAudioChunk = strncmp(header.chunkId, "01wb", 4) == 0;
@@ -160,12 +168,12 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
         *buffer = (uint8_t *)realloc(*buffer, header.chunkSize);
       }
       // copy the chunk data
-      fread(*buffer, header.chunkSize, 1, mFile);
+      mStream->read(reinterpret_cast<char *>(*buffer), header.chunkSize);
       mMoviListLength -= header.chunkSize;
       // handle any padding bytes
       if (header.chunkSize % 2 != 0)
       {
-        fseek(mFile, 1, SEEK_CUR);
+        mStream->seekg(1, std::ios::cur);
         mMoviListLength--;
       }
       return header.chunkSize;
@@ -173,13 +181,13 @@ size_t AVIParser::getNextChunk(uint8_t **buffer, size_t &bufferLength)
     else
     {
       // the data is not what was required - skip over the chunk
-      fseek(mFile, header.chunkSize, SEEK_CUR);
+      mStream->seekg(header.chunkSize, std::ios::cur);
       mMoviListLength -= header.chunkSize;
     }
     // handle any padding bytes
     if (header.chunkSize % 2 != 0)
     {
-      fseek(mFile, 1, SEEK_CUR);
+      mStream->seekg(1, std::ios::cur);
       mMoviListLength--;
     }
   }
