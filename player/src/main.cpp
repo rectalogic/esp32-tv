@@ -90,6 +90,8 @@ void setup()
   #else
   SDCard *card = new SDCard(SD_CARD_MISO, SD_CARD_MOSI, SD_CARD_CLK, SD_CARD_CS);
   #endif
+
+  #ifndef USE_EMBED
   // check that the SD Card has mounted properly
   if (!card->isMounted()) {
     Serial.println("Failed to mount SD Card");
@@ -98,6 +100,8 @@ void setup()
       delay(1000);
     }
   }
+  #endif
+
   channelData = new SDCardChannelData(card, "/");
   audioSource = new SDCardAudioSource((SDCardChannelData *) channelData);
   videoSource = new SDCardVideoSource((SDCardChannelData *) channelData);

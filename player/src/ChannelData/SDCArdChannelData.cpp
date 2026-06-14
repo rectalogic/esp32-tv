@@ -31,6 +31,10 @@ SDCardChannelData::~SDCardChannelData() {
 bool SDCardChannelData::fetchChannelData() {
   // check the the sd card is mounted
   if (!mSDCard->isMounted()) {
+    #ifdef USE_EMBED
+      mAviFiles.emplace_back(std::string());
+      return true;
+    #endif
     Serial.println("SD card is not mounted");
     return false;
   }
@@ -45,10 +49,13 @@ bool SDCardChannelData::fetchChannelData() {
 
 
 void SDCardChannelData::setChannel(int channel) {
+  #ifndef USE_EMBED
   if (!mSDCard->isMounted()) {
     Serial.println("SD card is not mounted");
     return;
   }
+  #endif
+
   // check that the channel is valid
   if (channel < 0 || channel >= mAviFiles.size()) {
     Serial.printf("Invalid channel %d\n", channel);
