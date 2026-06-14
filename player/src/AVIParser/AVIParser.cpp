@@ -15,6 +15,28 @@ public:
         char* p = reinterpret_cast<char*>(const_cast<unsigned char*>(video_avi));
         setg(p, p, p + video_avi_len);
     }
+
+    virtual pos_type seekoff(off_type off, std::ios::seekdir dir,
+                             std::ios::openmode which = std::ios::in) override {
+        if (which != std::ios::in) return pos_type(off_type(-1));
+        const char* base = eback();
+        const char* end  = egptr();
+        const char* pos;
+        switch (dir) {
+            case std::ios::beg: pos = base + off; break;
+            case std::ios::cur: pos = gptr() + off; break;
+            case std::ios::end: pos = end + off; break;
+            default:            return pos_type(off_type(-1));
+        }
+        if (pos < base || pos > end) return pos_type(off_type(-1));
+        setg(const_cast<char*>(base), const_cast<char*>(pos), const_cast<char*>(end));
+        return pos_type(pos - base);
+    }
+
+    virtual pos_type seekpos(pos_type pos,
+                             std::ios::openmode which = std::ios::in) override {
+        return seekoff(off_type(pos), std::ios::beg, which);
+    }
 };
 
 class embedstream : public std::istream {
@@ -22,9 +44,11 @@ class embedstream : public std::istream {
 
 public:
     embedstream()
-        : std::istream(&buf_)
+        : std::istream(nullptr)
         , buf_()
-    {}
+    {
+        std::istream::rdbuf(&buf_);
+    }
 };
 #endif
 
